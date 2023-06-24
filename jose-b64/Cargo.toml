@@ -13,10 +13,9 @@ edition = "2021"
 rust-version = "1.65"
 
 [features]
-default = ["secret"]
 secret = ["serde", "dep:zeroize", "dep:subtle"]
-serde = ["dep:serde"]
 json = ["serde", "dep:serde_json"]
+serde = ["dep:serde"]
 
 [dependencies]
 base64ct = { version = "1.6.0", default-features = false, features = ["alloc"] }
