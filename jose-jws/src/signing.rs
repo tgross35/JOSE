@@ -1,32 +1,48 @@
 use core::{convert::Infallible, fmt::Debug};
 
-use alloc::{vec::Vec, boxed::Box};
-use serde::{Serialize,Deserialize};
+use alloc::{boxed::Box, vec::Vec};
+use hmac::{
+    digest::{CtOutput, InvalidLength, KeyInit},
+    Hmac, Mac,
+};
+use jose_b64::Json;
 use jose_jwa::Algorithm;
-use hmac::{Hmac, Mac, digest::InvalidLength};
-use sha2::Sha256;
+use serde::{Deserialize, Serialize};
+
+use crate::Empty;
+
+pub type HmacSha256 = Hmac<sha2::Sha256>;
+pub type HmacSha384 = Hmac<sha2::Sha384>;
+pub type HmacSha512 = Hmac<sha2::Sha512>;
 
 /// A single signature contains protected data, unprotected data, and then the
 /// signature itself. The signature is the MAC of the payload plus the protected
 /// header data.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
-    protected: Protected<Phd>,
-    header: Uhd,
+    /// Protected header, base64 serialized
+    pub(crate) protected: Json<Protected<Phd>>,
+    /// Unprotected header, plain JSON
+    pub(crate) header: Uhd,
     /// "signature" value
-    signature: Alg::SigData,
+    // This check hides the field instead of printing `null`
+    #[serde(skip_serializing_if = "is_zst")]
+    pub(crate) signature: Alg::SigData,
+}
+
+fn is_zst<T>(value: &T) -> bool {
+    core::mem::size_of::<T>() == 0
 }
 
 /// Protected header data
-#[derive(Clone, Debug, Serialize,Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Protected<Phd> {
     /// When we sign, we always set the algorithm
     alg: Algorithm,
-    /// Data that 
+    /// Data that
     #[serde(flatten)]
     extra: Phd,
 }
-
 
 /// Trait for both signed and unsigned data
 pub trait MaybeSigned {
@@ -34,16 +50,15 @@ pub trait MaybeSigned {
     type SigData: Serialize;
 }
 
-/// Trait for all serializable algorithms
-pub trait SigningAlg: MaybeSigned + Sized {
+/// Provide the name of
+pub trait AlgorithmMeta {
     const ALGORITHM: Algorithm;
-    type Error: Debug;
-
-    fn mac_new_from_slice(key: &[u8]) -> Result<Self, Self::Error>;
-    fn mac_update(&mut self, data: &[u8]) -> Result<(), Self::Error>;
-    fn mac_finalize(self) -> Result<Self::SigData, Self::Error>;
 }
 
+/// Trait for all serializable algorithms
+pub trait SigningAlg: MaybeSigned + AlgorithmMeta + Sized + Mac + KeyInit {
+    fn convert(input: CtOutput<Self>) -> Self::SigData;
+}
 
 /// Not yet signed. Note: does not implement serialized
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -55,31 +70,32 @@ pub struct Unsigned {}
 pub struct AnySigning {}
 
 impl MaybeSigned for Unsigned {
-    type SigData = ();
+    type SigData = Empty;
 }
 
-type HmacSha256 = Hmac<Sha256>;
-
-impl MaybeSigned for HmacSha256 {
-    type SigData =  Box<[u8]>;
+impl<T> MaybeSigned for T
+where
+    T: Mac,
+{
+    type SigData = Box<[u8]>;
 }
 
-impl SigningAlg for HmacSha256 {
+impl AlgorithmMeta for HmacSha256 {
     const ALGORITHM: Algorithm = Algorithm::Hs256;
+}
+impl AlgorithmMeta for HmacSha384 {
+    const ALGORITHM: Algorithm = Algorithm::Hs384;
+}
+impl AlgorithmMeta for HmacSha512 {
+    const ALGORITHM: Algorithm = Algorithm::Hs512;
+}
 
-    type Error = Infallible;
-
-    fn mac_new_from_slice(key: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self::new_from_slice(key).unwrap())
-    }
-    
-    fn mac_update(&mut self, data: &[u8]) -> Result<(), Self::Error> {
-        self.update(data);
-        Ok(())
-    }
-
-    fn mac_finalize(self) -> Result<Self::SigData, Self::Error> {
-        Ok(self.finalize().into_bytes().as_slice().into())
+impl<T> SigningAlg for T
+where
+    T: Mac + AlgorithmMeta + KeyInit,
+{
+    fn convert(input: CtOutput<Self>) -> Self::SigData {
+        input.into_bytes().as_slice().into()
     }
 }
 
@@ -89,30 +105,54 @@ mod tests {
     use crate::Empty;
 
     use super::*;
+    use alloc::string::String;
     use pretty_assertions::assert_eq;
+    use serde_json::json;
 
     /// Dummy extra field for testing
-    #[derive(Serialize)]
+    #[derive(Debug, Serialize)]
     struct Extra {
         a: &'static str,
-        b: u64
+        b: u64,
     }
+    const EXTRA: Extra = Extra { a: "foo", b: 100 };
 
     #[test]
     fn test_protected() {
         // Test serializing extra data as flat
-        let foo: Protected<Extra> = Protected { alg:Algorithm::None, extra: Extra {a: "foo", b: 100} };
-        let expected = r#"{"alg":"none","a":"foo","b":100}"#;
-        assert_eq!(serde_json::to_string(&foo).unwrap(), expected);
+        let input: Protected<Extra> = Protected {
+            alg: Algorithm::None,
+            extra: EXTRA,
+        };
+        let expected = json! {{"alg":"none","a":"foo","b":100}};
+        assert_eq!(serde_json::to_value(&input).unwrap(), expected);
 
         // Test no extra data
-        let foo: Protected<Empty> = Protected { alg:Algorithm::Es256, extra: () };
-        let expected = r#"{"alg":"ES256"}"#;
-        assert_eq!(serde_json::to_string(&foo).unwrap(), expected);
+        let foo: Protected<Empty> = Protected {
+            alg: Algorithm::Es256,
+            extra: Empty,
+        };
+        let expected = json! {{"alg":"ES256"}};
+        assert_eq!(serde_json::to_value(&foo).unwrap(), expected);
     }
 
     #[test]
     fn test_signature() {
+        type SigTy = Signature<Extra, String, Unsigned>;
+        let protected = Protected {
+            alg: Algorithm::None,
+            extra: EXTRA,
+        };
+        let sig: SigTy = Signature {
+            protected: Json::new(protected).unwrap(),
+            header: String::from("bar"),
+            signature: Empty,
+        };
+        let expected = json! {{
+            "protected": "eyJhbGciOiJub25lIiwiYSI6ImZvbyIsImIiOjEwMH0",
+            "header": "bar",
+        }};
 
+        assert_eq!(serde_json::to_value(&sig).unwrap(), expected);
     }
 }

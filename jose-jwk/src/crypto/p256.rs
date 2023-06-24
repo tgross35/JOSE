@@ -6,7 +6,7 @@
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use p256::{EncodedPoint, FieldBytes, PublicKey, SecretKey};
 
-use jose_jwa::{Algorithm, Algorithm::Signing, Algorithm as S};
+use jose_jwa::{Algorithm, Algorithm as S, Algorithm::Signing};
 
 use super::Error;
 use super::KeyInfo;

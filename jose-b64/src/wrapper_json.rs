@@ -33,7 +33,7 @@ use crate::stream::Error;
 /// serialization, only the pre-serialized bytes are used; the type (`T`) is
 /// **not** reserialized.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-#[serde(bound(serialize = "Bytes<B, E>: Serialize"))]
+#[serde(bound(serialize = "B64Bytes<B, E>: Serialize"))]
 #[serde(transparent)]
 pub struct Json<T, B = Box<[u8]>, E = Base64UrlUnpadded> {
     buf: B64Bytes<B, E>,

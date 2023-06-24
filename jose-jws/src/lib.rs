@@ -18,29 +18,29 @@
     unused_lifetimes,
     unused_qualifications
 )]
-
 #![allow(unused)]
 
-use formats::JwsFormat;
-pub use formats::{Empty, Compact};
-use jose_b64::{Json, B64Bytes};
+use formats::JwsSignable;
+pub use formats::{Compact, Empty};
+use jose_b64::{B64Bytes, Json};
 use serde::{Deserialize, Serialize};
 pub use signing::Unsigned;
 
 extern crate alloc;
 
-mod private;
 mod formats;
+mod private;
 mod signing;
 
 /// A JSON Web Signature representation with statically typed format
-/// 
+///
 /// A JWS has three parts:
-/// 
+///
 /// - A header
 /// - A payload, represented as type `T`
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Jws<T, Fmt: JwsFormat = Compact<Empty, Unsigned>> {
+pub struct Jws<T, Fmt> {
+    // pub struct Jws<T, Fmt: JwsFormat = Compact<Empty, Unsigned>> {
     payload: T,
     #[serde(flatten)]
     data: Fmt,
@@ -49,10 +49,10 @@ pub struct Jws<T, Fmt: JwsFormat = Compact<Empty, Unsigned>> {
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use crate::signing::{Signature, Protected};
+    use crate::signing::{Protected, Signature};
 
     use super::*;
-    
+
     #[test]
     fn test_compact() {
         // let foo = Jws {
