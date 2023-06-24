@@ -6,7 +6,7 @@ use hmac::{
     digest::{CtOutput, InvalidLength, KeyInit},
     Hmac, Mac,
 };
-use jose_b64::Json;
+use jose_b64::{Json, B64Bytes};
 use jose_jwa::Algorithm;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
     /// Unprotected header, plain JSON
     pub(crate) unprotected: Uhd,
     /// "signature" value
-    pub(crate) signature: Alg::SigData,
+    pub(crate) signature: B64Bytes<Alg::SigData>,
 }
 
 impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
@@ -38,7 +38,7 @@ impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
             })
             .unwrap(),
             unprotected,
-            signature: Empty,
+            signature: Empty.into(),
         }
     }
 }
@@ -60,7 +60,8 @@ where
         if ser_signature {
             map.serialize_entry(
                 "signature",
-                Base64UrlUnpadded::encode_string(&self.signature),
+                &self.signature
+                // Base64UrlUnpadded::encode_string(&self.signature),
             )?;
         }
         map.end()
@@ -85,7 +86,7 @@ pub struct Protected<Phd> {
 /// Trait for both signed and unsigned data
 pub trait MaybeSigned {
     /// Data representing signature type
-    type SigData: Serialize;
+    type SigData: Serialize+ AsRef<[u8]>;
 }
 
 /// Provide the name of
@@ -177,15 +178,8 @@ mod tests {
     #[test]
     fn test_signature() {
         type SigTy = Signature<Extra, String, Unsigned>;
-        let protected = Protected {
-            alg: Algorithm::None,
-            extra: EXTRA,
-        };
-        let sig: SigTy = Signature {
-            protected: Json::new(protected).unwrap(),
-            unprotected: String::from("bar"),
-            signature: Empty,
-        };
+        let sig: SigTy = Signature::new_unsigned(EXTRA, String::from("bar"));
+
         let expected = json! {{
             "protected": "eyJhbGciOiJub25lIiwiYSI6ImZvbyIsImIiOjEwMH0",
             "header": "bar",

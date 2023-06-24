@@ -22,9 +22,10 @@ pub trait JwsSignable: Sealed {
     /// Resulting type after signing with an algorithm
     type SignedTy<Alg: MaybeSigned>;
 
+    // FIXME: key or payload first? Best to be consistent with rustcrypto
     /// Sign a serializable object
     fn sign_payload<Alg: SigningAlg, T: Serialize>(
-        self,
+        self,key: &[u8],
         payload: &T,
     ) -> Result<Self::SignedTy<Alg>, SignError>
     where
@@ -33,11 +34,11 @@ pub trait JwsSignable: Sealed {
         let payload_ser = serde_json::to_vec(payload)
             .ok()
             .ok_or(SignError::Serialization)?;
-        self.sign_bytes(&payload_ser)
+        self.sign_bytes(key, &payload_ser)
     }
 
     /// Sign any raw bytes payload
-    fn sign_bytes<Alg: SigningAlg>(self, bytes: &[u8]) -> Result<Self::SignedTy<Alg>, SignError>
+    fn sign_bytes<Alg: SigningAlg>(self, key: &[u8],bytes: &[u8]) -> Result<Self::SignedTy<Alg>, SignError>
     where
         Self: Sized,
     {
@@ -115,17 +116,23 @@ where
 
     fn sign_bytes<Alg: SigningAlg>(
         mut self,
+        key: &[u8],
         bytes: &[u8],
     ) -> Result<Self::SignedTy<Alg>, SignError> {
+        self.0.protected.update(|p| p.alg = Alg::ALGORITHM);
+        let mut mac = <Alg as hmac::Mac>::new_from_slice(key)?;
+
         let protected_ser = serde_json::to_vec(&self.0.protected)
             .ok()
             .ok_or(SignError::Serialization)?;
-        let mut mac = <Alg as hmac::Mac>::new_from_slice(
-            Base64UrlUnpadded::encode_string(&protected_ser).as_bytes(),
-        )?;
-        mac.update(&Base64UrlUnpadded::encode_string(bytes).as_bytes());
-        let signature = Alg::convert(mac.finalize());
-        self.0.protected.update(|p| p.alg = Alg::ALGORITHM);
+        // TODO we're serializing the json and not b64 here
+        std::dbg!(std::str::from_utf8(&self.0.protected.as_ref()));
+        // std::dbg!(std::str::from_utf8(&protected_ser));
+        mac.update(self.0.protected.as_ref());
+
+        std::dbg!(std::str::from_utf8(bytes));
+        mac.update(std::dbg!(&Base64UrlUnpadded::encode_string(bytes)).as_bytes());
+        let signature = Alg::convert(mac.finalize()).into();
 
         Ok(Flat(Signature {
             protected: self.0.protected,
@@ -134,6 +141,7 @@ where
         }))
     }
 }
+extern crate std;
 
 impl<Phd, Uhd, Signing: MaybeSigned> Sealed for Flat<Phd, Uhd, Signing> {}
 
@@ -169,6 +177,13 @@ where
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Empty;
 
+impl AsRef<[u8]> for Empty {
+    fn as_ref(&self) -> &[u8] {
+        unimplemented!()
+        // &[]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -183,7 +198,6 @@ mod tests {
     fn test_flat() {
         let protected = json! {{
             "typ":"JWT",
-            "alg":"HS256"
         }};
         let payload = json! {{
             "iss":"joe",
@@ -193,7 +207,7 @@ mod tests {
         let sig = Flat(Signature::new_unsigned(protected, Empty));
         std::dbg!(&sig);
         let out: Flat<Value, Empty, HmacSha256> =
-            sig.sign_payload::<HmacSha256, _>(&payload).unwrap();
+            sig.sign_payload::<HmacSha256, _>("hi".as_bytes(), &payload).unwrap();
         std::dbg!(&out);
         std::dbg!(serde_json::to_string(&out).unwrap());
     }
