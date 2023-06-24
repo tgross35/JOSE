@@ -14,7 +14,7 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::de::{DeserializeOwned, Error as _};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::Bytes;
+use super::B64Bytes;
 use crate::stream::Error;
 
 /// A wrapper for nested, base64-encoded JSON. Available with the feature
@@ -36,7 +36,7 @@ use crate::stream::Error;
 #[serde(bound(serialize = "Bytes<B, E>: Serialize"))]
 #[serde(transparent)]
 pub struct Json<T, B = Box<[u8]>, E = Base64UrlUnpadded> {
-    buf: Bytes<B, E>,
+    buf: B64Bytes<B, E>,
 
     #[serde(skip_serializing)]
     val: T,
@@ -56,14 +56,14 @@ impl<T, B: AsRef<[u8]>, E> AsRef<[u8]> for Json<T, B, E> {
     }
 }
 
-impl<T, B, E> TryFrom<Bytes<B, E>> for Json<T, B, E>
+impl<T, B, E> TryFrom<B64Bytes<B, E>> for Json<T, B, E>
 where
-    Bytes<B, E>: AsRef<[u8]>,
+    B64Bytes<B, E>: AsRef<[u8]>,
     T: DeserializeOwned,
 {
     type Error = serde_json::Error;
 
-    fn try_from(buf: Bytes<B, E>) -> Result<Self, Self::Error> {
+    fn try_from(buf: B64Bytes<B, E>) -> Result<Self, Self::Error> {
         Ok(Self {
             val: serde_json::from_slice(buf.as_ref())?,
             buf,
@@ -73,7 +73,7 @@ where
 
 impl<T, B, E> Json<T, B, E>
 where
-    Bytes<B, E>: From<Vec<u8>>,
+    B64Bytes<B, E>: From<Vec<u8>>,
     T: Serialize,
 {
     /// Creates a new instance by serializing the input to JSON.
@@ -90,27 +90,27 @@ where
 
 impl<T, B, E: Encoding> FromStr for Json<T, B, E>
 where
-    Bytes<B, E>: FromStr<Err = Error<Infallible>>,
-    Bytes<B, E>: AsRef<[u8]>,
+    B64Bytes<B, E>: FromStr<Err = Error<Infallible>>,
+    B64Bytes<B, E>: AsRef<[u8]>,
     T: DeserializeOwned,
 {
     type Err = Error<serde_json::Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let buf = Bytes::from_str(s).map_err(|e| e.cast())?;
+        let buf = B64Bytes::from_str(s).map_err(|e| e.cast())?;
         buf.try_into().map_err(Error::Inner)
     }
 }
 
 impl<'de, T, B, E> Deserialize<'de> for Json<T, B, E>
 where
-    Bytes<B, E>: Deserialize<'de>,
-    Bytes<B, E>: AsRef<[u8]>,
+    B64Bytes<B, E>: Deserialize<'de>,
+    B64Bytes<B, E>: AsRef<[u8]>,
     T: DeserializeOwned,
     E: Encoding,
 {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(match Self::try_from(Bytes::deserialize(deserializer)?) {
+        Ok(match Self::try_from(B64Bytes::deserialize(deserializer)?) {
             Err(e) => return Err(D::Error::custom(e)),
             Ok(x) => x,
         })

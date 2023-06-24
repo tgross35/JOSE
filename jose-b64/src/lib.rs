@@ -30,10 +30,10 @@ mod wrapper_secret;
 pub use base64ct;
 
 #[cfg(feature = "serde")]
-pub use wrapper_bytes::Bytes;
+pub use wrapper_bytes::B64Bytes;
 
 #[cfg(feature = "secret")]
-pub use wrapper_secret::Secret;
+pub use wrapper_secret::B64Secret;
 
 #[cfg(feature = "json")]
 pub use wrapper_json::Json;

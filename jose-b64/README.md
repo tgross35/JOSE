@@ -32,7 +32,7 @@ include:
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use jose_b64::{Bytes, Json, Secret};
+use jose_b64::{B64Bytes, Json, B64Secret};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct Inner {
@@ -43,11 +43,11 @@ struct Inner {
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct Data {
     /// Base64-encoded data
-    unsecure: Bytes<Vec<u8>>,
+    unsecure: B64Bytes<Vec<u8>>,
     /// JSON embedded as base64
     inner: Json<Inner>,
     /// Base64-encoded data, to be serialized/deserialized securely
-    secret: Secret<Vec<u8>>
+    secret: B64Secret<Vec<u8>>
 }
 
 let input = r#"{

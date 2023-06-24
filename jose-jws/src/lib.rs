@@ -23,7 +23,7 @@
 
 use formats::JwsFormat;
 pub use formats::{Empty, Compact};
-use jose_b64::{Json, Bytes};
+use jose_b64::{Json, B64Bytes};
 use serde::{Deserialize, Serialize};
 pub use signing::Unsigned;
 
