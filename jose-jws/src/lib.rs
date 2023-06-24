@@ -30,7 +30,7 @@ pub use head::{Protected, Unprotected};
 
 use alloc::{vec, vec::Vec};
 
-use jose_b64::serde::{Bytes, Json};
+use jose_b64::{Bytes, Json};
 use serde::{Deserialize, Serialize};
 
 /// A JSON Web Signature representation
