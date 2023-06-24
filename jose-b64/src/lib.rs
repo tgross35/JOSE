@@ -22,10 +22,10 @@
 extern crate alloc;
 
 mod fake_zeroize;
+pub mod stream;
 mod wrapper_bytes;
 mod wrapper_json;
 mod wrapper_secret;
-pub mod stream;
 
 pub use base64ct;
 

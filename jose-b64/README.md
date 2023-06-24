@@ -28,7 +28,7 @@ include:
 ## Examples
 
 ```rust
-# #[cfg(feature = "json")] {
+# #[cfg(all(feature = "json", feature = "secret"))] {
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
