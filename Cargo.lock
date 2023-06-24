@@ -242,6 +242,7 @@ dependencies = [
 name = "jose-jws"
 version = "0.1.0"
 dependencies = [
+ "base64ct",
  "hmac",
  "jose-b64",
  "jose-jwa",

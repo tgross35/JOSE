@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use base64ct::{Base64UrlUnpadded, Encoding};
 use core::fmt;
 use hmac::digest::InvalidLength;
 use serde::{Deserialize, Serialize};
@@ -17,8 +18,26 @@ use crate::{
 ///       single signature with protected header data (no unprotected data)
 /// - [`Flat`]: A JSON representation of a single signature
 /// - [`General`]: A JSON representation allowing more than one signature
-pub trait JwsSignable<Alg: SigningAlg, SignedTy>: Sealed {
-    fn sign_payload<T: Serialize>(self, payload: &T) -> Result<SignedTy, SignError>
+pub trait JwsSignable: Sealed {
+    /// Resulting type after signing with an algorithm
+    type SignedTy<Alg: MaybeSigned>;
+
+    /// Sign a serializable object
+    fn sign_payload<Alg: SigningAlg, T: Serialize>(
+        self,
+        payload: &T,
+    ) -> Result<Self::SignedTy<Alg>, SignError>
+    where
+        Self: Sized,
+    {
+        let payload_ser = serde_json::to_vec(payload)
+            .ok()
+            .ok_or(SignError::Serialization)?;
+        self.sign_bytes(&payload_ser)
+    }
+
+    /// Sign any raw bytes payload
+    fn sign_bytes<Alg: SigningAlg>(self, bytes: &[u8]) -> Result<Self::SignedTy<Alg>, SignError>
     where
         Self: Sized,
     {
@@ -28,6 +47,7 @@ pub trait JwsSignable<Alg: SigningAlg, SignedTy>: Sealed {
 
 /// Errors with signing happen either during serialization or hmac
 #[non_exhaustive]
+#[derive(Clone, Debug)]
 pub enum SignError {
     Length(InvalidLength),
     Serialization,
@@ -71,28 +91,45 @@ where
 }
 
 /// Flat format, allows protected and unprotected header data
-#[derive(Serialize)]
+// #[derive(Debug)]
 pub struct Flat<Phd, Uhd, Signing: MaybeSigned>(Signature<Phd, Uhd, Signing>);
 
-impl<Phd, Uhd, Signing, Alg> JwsSignable<Alg, Flat<Phd, Uhd, Alg>> for Flat<Phd, Uhd, Signing>
+impl<Phd, Uhd, Signing: MaybeSigned> Serialize for Flat<Phd, Uhd, Signing>
+where
+    Signature<Phd, Uhd, Signing>: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<Phd, Uhd, Signing> JwsSignable for Flat<Phd, Uhd, Signing>
 where
     Signing: MaybeSigned,
-    Alg: SigningAlg,
+    Phd: Serialize,
 {
-    fn sign_payload<T: Serialize>(self, payload: &T) -> Result<Flat<Phd, Uhd, Alg>, SignError> {
+    type SignedTy<Alg: MaybeSigned> = Flat<Phd, Uhd, Alg>;
+
+    fn sign_bytes<Alg: SigningAlg>(
+        mut self,
+        bytes: &[u8],
+    ) -> Result<Self::SignedTy<Alg>, SignError> {
         let protected_ser = serde_json::to_vec(&self.0.protected)
             .ok()
             .ok_or(SignError::Serialization)?;
-        let mut mac = <Alg as hmac::Mac>::new_from_slice(&protected_ser)?;
-        let payload_ser = serde_json::to_vec(payload)
-            .ok()
-            .ok_or(SignError::Serialization)?;
-        mac.update(&payload_ser);
+        let mut mac = <Alg as hmac::Mac>::new_from_slice(
+            Base64UrlUnpadded::encode_string(&protected_ser).as_bytes(),
+        )?;
+        mac.update(&Base64UrlUnpadded::encode_string(bytes).as_bytes());
         let signature = Alg::convert(mac.finalize());
+        self.0.protected.update(|p| p.alg = Alg::ALGORITHM);
 
         Ok(Flat(Signature {
             protected: self.0.protected,
-            header: self.0.header,
+            unprotected: self.0.unprotected,
             signature,
         }))
     }
@@ -134,6 +171,30 @@ pub struct Empty;
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
+    use crate::signing::HmacSha256;
+
+    use super::*;
+    use jose_b64::Json;
+    use serde_json::{json, Value};
+
     #[test]
-    fn test_compact() {}
+    fn test_flat() {
+        let protected = json! {{
+            "typ":"JWT",
+            "alg":"HS256"
+        }};
+        let payload = json! {{
+            "iss":"joe",
+            "exp":1300819380,
+            "http://example.com/is_root":true
+        }};
+        let sig = Flat(Signature::new_unsigned(protected, Empty));
+        std::dbg!(&sig);
+        let out: Flat<Value, Empty, HmacSha256> =
+            sig.sign_payload::<HmacSha256, _>(&payload).unwrap();
+        std::dbg!(&out);
+        std::dbg!(serde_json::to_string(&out).unwrap());
+    }
 }

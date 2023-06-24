@@ -1,13 +1,14 @@
 use core::{convert::Infallible, fmt::Debug};
 
 use alloc::{boxed::Box, vec::Vec};
+use base64ct::{Base64UrlUnpadded, Encoding};
 use hmac::{
     digest::{CtOutput, InvalidLength, KeyInit},
     Hmac, Mac,
 };
 use jose_b64::Json;
 use jose_jwa::Algorithm;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::Empty;
 
@@ -18,16 +19,52 @@ pub type HmacSha512 = Hmac<sha2::Sha512>;
 /// A single signature contains protected data, unprotected data, and then the
 /// signature itself. The signature is the MAC of the payload plus the protected
 /// header data.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
     /// Protected header, base64 serialized
     pub(crate) protected: Json<Protected<Phd>>,
     /// Unprotected header, plain JSON
-    pub(crate) header: Uhd,
+    pub(crate) unprotected: Uhd,
     /// "signature" value
-    // This check hides the field instead of printing `null`
-    #[serde(skip_serializing_if = "is_zst")]
     pub(crate) signature: Alg::SigData,
+}
+
+impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
+    pub(crate) fn new_unsigned(protected: Phd, unprotected: Uhd) -> Self {
+        Self {
+            protected: Json::new(Protected {
+                alg: Algorithm::None,
+                extra: protected,
+            })
+            .unwrap(),
+            unprotected,
+            signature: Empty,
+        }
+    }
+}
+
+impl<Phd, Uhd, Alg> Serialize for Signature<Phd, Uhd, Alg>
+where
+    Uhd: Serialize,
+    Alg: MaybeSigned,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let ser_signature = !is_zst(&self.signature);
+        let len = if ser_signature { 2 } else { 1 };
+        let mut map = serializer.serialize_map(Some(len))?;
+        map.serialize_entry("protected", &self.protected)?;
+        map.serialize_entry("header", &self.unprotected)?;
+        if ser_signature {
+            map.serialize_entry(
+                "signature",
+                Base64UrlUnpadded::encode_string(&self.signature),
+            )?;
+        }
+        map.end()
+    }
 }
 
 fn is_zst<T>(value: &T) -> bool {
@@ -38,10 +75,11 @@ fn is_zst<T>(value: &T) -> bool {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Protected<Phd> {
     /// When we sign, we always set the algorithm
-    alg: Algorithm,
+    pub(crate) alg: Algorithm,
     /// Data that
     #[serde(flatten)]
-    extra: Phd,
+    #[serde(skip_serializing_if = "is_zst")]
+    pub(crate) extra: Phd,
 }
 
 /// Trait for both signed and unsigned data
@@ -145,7 +183,7 @@ mod tests {
         };
         let sig: SigTy = Signature {
             protected: Json::new(protected).unwrap(),
-            header: String::from("bar"),
+            unprotected: String::from("bar"),
             signature: Empty,
         };
         let expected = json! {{

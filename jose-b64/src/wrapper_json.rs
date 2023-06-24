@@ -86,6 +86,17 @@ where
             val: value,
         })
     }
+
+    /// Extract the inner value and discard the buffer
+    pub fn into_inner(self) -> T {
+        self.val
+    }
+
+    /// Update the inner value
+    pub fn update<F: FnMut(&mut T)>(&mut self, mut f: F) -> Result<(), serde_json::Error> {
+        f(&mut self.val);
+        Ok(self.buf = serde_json::to_vec(&self.val)?.into())
+    }
 }
 
 impl<T, B, E: Encoding> FromStr for Json<T, B, E>
