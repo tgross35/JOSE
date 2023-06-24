@@ -17,15 +17,16 @@ use serde::{Deserialize, Deserializer, Serialize};
 use super::Bytes;
 use crate::stream::Error;
 
-/// A wrapper for nested, base64-encoded JSON
+/// A wrapper for nested, base64-encoded JSON. Available with the feature
+/// `json`.
 ///
 /// [`Json`] handles the case where a type (`T`) is serialized to JSON and then
 /// embedded into another JSON object as a base64-string. Note that [`Json`]
 /// internally stores both the originally decoded bytes **and** the
-/// doubly-decoded value. While this uses additional memory, it ensures that
-/// the original serialization is not lost. This is important in cryptogrpahic
-/// contexts where the original serialization may be included in a
-/// cryptogrpahic measurement.
+/// doubly-decoded value. While this uses additional memory, it ensures that the
+/// original serialization is not lost. This is important in cryptogrpahic
+/// contexts where the original serialization may be included in a cryptogrpahic
+/// measurement.
 ///
 /// During deserialization, a full double deserialization is performed. This
 /// ensures that an instantiated [`Json`] object is always fully parsed. During
