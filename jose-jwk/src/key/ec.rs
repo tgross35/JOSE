@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use jose_b64::serde::{Bytes, Secret};
+use jose_b64::{Bytes, Secret};
 
 /// An elliptic-curve key.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

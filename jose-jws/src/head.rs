@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use alloc::{boxed::Box, string::String};
 
 use jose_b64::base64ct::Base64;
-use jose_b64::serde::Bytes;
+use jose_b64::Bytes;
 use jose_jwa::Signing;
 use jose_jwk::{Jwk, Thumbprint};
 use serde::{Deserialize, Serialize};

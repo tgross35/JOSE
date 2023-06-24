@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use jose_b64::serde::Secret;
+use jose_b64::Secret;
 
 /// A symmetric octet key.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

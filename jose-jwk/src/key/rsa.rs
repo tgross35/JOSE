@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 
 use serde::{Deserialize, Serialize};
 
-use jose_b64::serde::{Bytes, Secret};
+use jose_b64::{Bytes, Secret};
 
 /// An RSA key.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Profian Inc. <opensource@profian.com>
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+#![cfg(feature = "serde")]
+
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -15,7 +17,8 @@ use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::stream::Error;
 
-/// A serde wrapper for base64-encoded bytes.
+/// A serde wrapper for non-secure base64-encoded bytes. Available with the
+/// feature `serde`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Bytes<T = Box<[u8]>, E = Base64UrlUnpadded> {
     buf: T,

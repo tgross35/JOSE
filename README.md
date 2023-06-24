@@ -13,6 +13,17 @@ Pure Rust implementation of Javascript Object Signing and Encryption ([JOSE])
 | `jose-jws` | [![crates.io](https://img.shields.io/crates/v/jose-jws.svg)](https://crates.io/crates/jose-jws) | [![Documentation](https://docs.rs/jose-jws/badge.svg)](https://docs.rs/jose-jws) | JSON Web Signatures (JWS)               |
 | `jose-jwt` | [![crates.io](https://img.shields.io/crates/v/jose-jwt.svg)](https://crates.io/crates/jose-jwt) | [![Documentation](https://docs.rs/jose-jwt/badge.svg)](https://docs.rs/jose-jwt) | JSON Web Tokens (JWT)                   |
 
+## Crate Relationships
+
+There are multiple components to JOSE that can be used separately; the different
+crates within this project attempt to bring this together.
+
+### `jose-b64`
+
+This crate provides utilities for working with Base64 strings in a
+cryptographically secure way. It includes ways to work with JSON serialization
+(via Serde) as well as constant time implementations.
+
 ## License
 
 All crates licensed under either of

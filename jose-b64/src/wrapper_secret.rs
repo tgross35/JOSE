@@ -14,7 +14,8 @@ use zeroize::{Zeroize, Zeroizing};
 
 use super::Bytes;
 
-/// A serde wrapper for base64-encoded secrets.
+/// A serde wrapper for base64-encoded secrets (secure version of [`Bytes`]).
+/// Available with the feature `secret`.
 ///
 /// A secret is like the [`Bytes`] type, with some additional protections:
 ///
