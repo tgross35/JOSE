@@ -20,9 +20,23 @@ crates within this project attempt to bring this together.
 
 ### `jose-b64`
 
-This crate provides utilities for working with Base64 strings in a
-cryptographically secure way. It includes ways to work with JSON serialization
-(via Serde) as well as constant time implementations.
+This crate provides relevant utilities for working with Base64. It won't often
+be used on its own, but provides helper types for working with json-as-b64 and
+cyptographically secure base64, both of which are common cases with JOSE.
+
+### `jose-jwa`
+
+This crate provides representations of different algorithm types. Again, it is
+not likely that this crate is used on its own; it will be reexported when
+required by the other crates.
+
+### `jose-jwe`
+
+### `jose-jwk`
+
+### `jose-jws`
+
+### `jose-jwt`
 
 ## License
 
