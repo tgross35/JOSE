@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod rfc7517 {
-    use jose_jwa::Signing;
+    use jose_jwa::Algorithm;
     use jose_jwk::*;
 
     #[test]
@@ -78,7 +78,7 @@ mod rfc7517 {
                         .into(),
                     }),
                     prm: Parameters {
-                        alg: Some(Signing::Rs256.into()),
+                        alg: Some(Algorithm::Rs256.into()),
                         kid: Some("2011-04-29".to_string()),
                         ..Default::default()
                     },
@@ -284,7 +284,7 @@ mod rfc7517 {
                         }),
                     }),
                     prm: Parameters {
-                        alg: Some(Signing::Rs256.into()),
+                        alg: Some(Algorithm::Rs256.into()),
                         kid: Some("2011-04-29".to_string()),
                         ..Default::default()
                     },

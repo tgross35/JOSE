@@ -19,113 +19,56 @@
     unused_qualifications
 )]
 
+#![allow(unused)]
+
+use formats::JwsFormat;
+pub use formats::{Empty, Compact};
+use jose_b64::{Json, Bytes};
+use serde::{Deserialize, Serialize};
+pub use signing::Unsigned;
+
 extern crate alloc;
 
-pub mod crypto;
+mod private;
+mod formats;
+mod signing;
 
-mod compact;
-mod head;
-
-pub use head::{Protected, Unprotected};
-
-use alloc::{vec, vec::Vec};
-
-use jose_b64::{Bytes, Json};
-use serde::{Deserialize, Serialize};
-
-/// A JSON Web Signature representation
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[non_exhaustive]
-#[allow(clippy::large_enum_variant)]
-#[serde(untagged)]
-pub enum Jws {
-    /// General Serialization. This is
-    General(General),
-
-    /// Flattened Serialization
-    Flattened(Flattened),
-}
-
-impl From<General> for Jws {
-    fn from(value: General) -> Self {
-        Jws::General(value)
-    }
-}
-
-impl From<Flattened> for Jws {
-    fn from(value: Flattened) -> Self {
-        Jws::Flattened(value)
-    }
-}
-
-/// General Serialization
-///
-/// This is the usual JWS form, which allows multiple signatures to be
-/// specified.
-///
-/// ```json
-/// {
-///     "payload":"<payload contents>",
-///     "signatures":[
-///      {"protected":"<integrity-protected header 1 contents>",
-///       "header":<non-integrity-protected header 1 contents>,
-///       "signature":"<signature 1 contents>"},
-///      ...
-///      {"protected":"<integrity-protected header N contents>",
-///       "header":<non-integrity-protected header N contents>,
-///       "signature":"<signature N contents>"}]
-/// }
-/// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct General {
-    /// The payload of the signature.
-    pub payload: Option<Bytes>,
-
-    /// The signatures over the payload.
-    pub signatures: Vec<Signature>,
-}
-
-impl From<Flattened> for General {
-    fn from(value: Flattened) -> Self {
-        Self {
-            payload: value.payload,
-            signatures: vec![value.signature],
-        }
-    }
-}
-
-/// Flattened Serialization
-///
-/// This is similar to the general serialization but is more compact, only
-/// supporting one signature.
-///
-/// ```json
-/// {
-///     "payload":"<payload contents>",
-///     "protected":"<integrity-protected header contents>",
-///     "header":<non-integrity-protected header contents>,
-///     "signature":"<signature contents>"
-/// }
-/// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Flattened {
-    /// The payload of the signature.
-    pub payload: Option<Bytes>,
-
-    /// The signature over the payload.
+/// A JSON Web Signature representation with statically typed format
+/// 
+/// A JWS has three parts:
+/// 
+/// - A header
+/// - A payload, represented as type `T`
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Jws<T, Fmt: JwsFormat = Compact<Empty, Unsigned>> {
+    payload: T,
     #[serde(flatten)]
-    pub signature: Signature,
+    data: Fmt,
 }
 
-/// A Signature
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Signature {
-    /// The JWS Unprotected Header
-    pub header: Option<Unprotected>,
+#[cfg(test)]
+mod tests {
+    extern crate std;
+    use crate::signing::{Signature, Protected};
 
-    /// The JWS Protected Header
-    pub protected: Option<Json<Protected>>,
+    use super::*;
+    
+    #[test]
+    fn test_compact() {
+        // let foo = Jws {
+        //     payload: "hello world",
+        //     data: Compact {
+        //         signature: Signature {
+        //             protected: Protected {
+        //                 alg: None,
+        //                 extra: (),
+        //             },
+        //             unprotected: Unprotected{ extra: () },
+        //             signature: Unsigned{},
+        //         }
+        //     },
+        // };
 
-    /// The Signature Bytes
-    pub signature: Bytes,
+        // std::dbg!(serde_json::to_string(&foo));
+    }
 }

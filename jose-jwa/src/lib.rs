@@ -23,32 +23,13 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// Possible types of algorithms that can exist in an "alg" descriptor.
-///
-/// Currently only signing algorithms are represented.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[allow(missing_docs)]
-#[serde(untagged)]
-#[non_exhaustive]
-pub enum Algorithm {
-    /// Algorithms used for digital signatures and MACs
-    Signing(Signing),
-}
-
-impl From<Signing> for Algorithm {
-    #[inline(always)]
-    fn from(alg: Signing) -> Self {
-        Self::Signing(alg)
-    }
-}
-
 /// Algorithms used for signing, as defined in [RFC7518] section 3.1.
 ///
 /// [RFC7518]: https://www.rfc-editor.org/rfc/rfc7518
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum Signing {
+pub enum Algorithm {
     /// EdDSA signature algorithms (Optional)
     #[serde(rename = "EdDSA")]
     EdDsa,
@@ -97,7 +78,7 @@ pub enum Signing {
     None,
 }
 
-impl fmt::Display for Signing {
+impl fmt::Display for Algorithm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.serialize(f)
     }
@@ -114,7 +95,7 @@ mod tests {
 
     #[test]
     fn simple_roundtrip() {
-        use Signing::*;
+        use Algorithm::*;
 
         let input = vec![
             EdDsa, Es256, Es256K, Es384, Es512, Hs256, Hs384, Hs512, Ps256, Ps384, Ps512, Rs256,
@@ -128,7 +109,7 @@ mod tests {
         );
 
         assert_eq!(
-            serde_json::from_str::<Vec<Signing>>(&ser).expect("deserialization failed"),
+            serde_json::from_str::<Vec<Algorithm>>(&ser).expect("deserialization failed"),
             input
         );
     }

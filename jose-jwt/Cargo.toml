@@ -16,6 +16,9 @@ readme = "README.md"
 edition = "2021"
 rust-version = "1.65"
 
+[dependencies]
+
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

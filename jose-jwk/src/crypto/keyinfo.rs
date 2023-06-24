@@ -4,7 +4,7 @@
 use core::ops::Deref;
 
 use alloc::{boxed::Box, vec::Vec};
-use jose_jwa::{Algorithm, Algorithm::Signing, Signing::*};
+use jose_jwa::{Algorithm as A};
 
 use crate::{Ec, EcCurves, Jwk, Key, Oct, Okp, OkpCurves, Rsa};
 

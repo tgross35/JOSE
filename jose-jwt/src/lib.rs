@@ -15,3 +15,14 @@
     unused_lifetimes,
     unused_qualifications
 )]
+
+use alloc::string::String;
+
+extern crate alloc;
+
+// TODO: implement this for JWS and JWE
+pub trait Jwt {
+    type Error;
+    fn encode_to_string(&self) -> String;
+    fn from_str(input: &str) -> Result<Self, Self::Error>;
+}

@@ -8,7 +8,7 @@ use rsa::{
     BigUint, RsaPrivateKey, RsaPublicKey,
 };
 
-use jose_jwa::{Algorithm, Algorithm::Signing, Signing as S};
+use jose_jwa::{Algorithm, Algorithm::Signing, Algorithm as S};
 
 use super::Error;
 use super::KeyInfo;
