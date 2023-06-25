@@ -10,11 +10,70 @@ use jose_b64::{B64Bytes, Json};
 use jose_jwa::Algorithm;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
-use crate::{formats::SignError, Empty};
+use crate::{formats::SignError, Empty, private::Sealed};
 
 pub type HmacSha256 = Hmac<sha2::Sha256>;
 pub type HmacSha384 = Hmac<sha2::Sha384>;
 pub type HmacSha512 = Hmac<sha2::Sha512>;
+
+
+/// Trait for both signed and unsigned data
+pub trait MaybeSigned: Sealed {
+    /// Data representing signature type
+    type SigData: Serialize + AsRef<[u8]>;
+}
+
+/// Provide the enum variant of the algorithm
+///
+/// This trait is separate from [`SigningAlg`] so we cna derive `SigningAlg` but
+/// manually match the enum variant
+pub trait AlgorithmMeta {
+    const ALGORITHM: Algorithm;
+}
+
+/// Trait for all serializable algorithms
+pub trait SigningAlg: MaybeSigned + AlgorithmMeta + Sized + Mac + KeyInit {
+    fn convert(input: CtOutput<Self>) -> Self::SigData;
+}
+
+/// Not yet signed. Note: does not implement serialized
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Unsigned {}
+
+/// Signing algorithm is unknown for e.g., incoming JWEs where type may not be
+/// known in advance
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AnySigning {}
+
+impl MaybeSigned for Unsigned {
+    type SigData = Empty;
+}
+
+impl<T> MaybeSigned for T
+where
+    T: Mac,
+{
+    type SigData = Box<[u8]>;
+}
+
+impl AlgorithmMeta for HmacSha256 {
+    const ALGORITHM: Algorithm = Algorithm::Hs256;
+}
+impl AlgorithmMeta for HmacSha384 {
+    const ALGORITHM: Algorithm = Algorithm::Hs384;
+}
+impl AlgorithmMeta for HmacSha512 {
+    const ALGORITHM: Algorithm = Algorithm::Hs512;
+}
+
+impl<T> SigningAlg for T
+where
+    T: Mac + AlgorithmMeta + KeyInit,
+{
+    fn convert(input: CtOutput<Self>) -> Self::SigData {
+        input.into_bytes().as_slice().into()
+    }
+}
 
 /// A single signature contains protected data, unprotected data, and then the
 /// signature itself. The signature is the MAC of the payload plus the protected
@@ -98,63 +157,6 @@ pub struct Protected<Phd> {
     pub(crate) extra: Phd,
 }
 
-/// Trait for both signed and unsigned data
-pub trait MaybeSigned {
-    /// Data representing signature type
-    type SigData: Serialize + AsRef<[u8]>;
-}
-
-/// Provide the enum variant of the algorithm
-///
-/// This trait is separate from [`SigningAlg`] so we cna derive `SigningAlg` but
-/// manually match the enum variant
-pub trait AlgorithmMeta {
-    const ALGORITHM: Algorithm;
-}
-
-/// Trait for all serializable algorithms
-pub trait SigningAlg: MaybeSigned + AlgorithmMeta + Sized + Mac + KeyInit {
-    fn convert(input: CtOutput<Self>) -> Self::SigData;
-}
-
-/// Not yet signed. Note: does not implement serialized
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Unsigned {}
-
-/// Signing algorithm is unknown for e.g., incoming JWEs where type may not be
-/// known in advance
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AnySigning {}
-
-impl MaybeSigned for Unsigned {
-    type SigData = Empty;
-}
-
-impl<T> MaybeSigned for T
-where
-    T: Mac,
-{
-    type SigData = Box<[u8]>;
-}
-
-impl AlgorithmMeta for HmacSha256 {
-    const ALGORITHM: Algorithm = Algorithm::Hs256;
-}
-impl AlgorithmMeta for HmacSha384 {
-    const ALGORITHM: Algorithm = Algorithm::Hs384;
-}
-impl AlgorithmMeta for HmacSha512 {
-    const ALGORITHM: Algorithm = Algorithm::Hs512;
-}
-
-impl<T> SigningAlg for T
-where
-    T: Mac + AlgorithmMeta + KeyInit,
-{
-    fn convert(input: CtOutput<Self>) -> Self::SigData {
-        input.into_bytes().as_slice().into()
-    }
-}
 
 #[cfg(test)]
 mod tests {
