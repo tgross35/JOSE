@@ -163,7 +163,7 @@ mod tests {
             extra: EXTRA,
         };
         let expected = json! {{"alg":"none","a":"foo","b":100}};
-        assert_eq!(serde_json::to_value(&input).unwrap(), expected);
+        assert_eq!(serde_json::to_value(input).unwrap(), expected);
 
         // Test no extra data
         let foo: Protected<Empty> = Protected {
@@ -171,7 +171,7 @@ mod tests {
             extra: Empty,
         };
         let expected = json! {{"alg":"ES256"}};
-        assert_eq!(serde_json::to_value(&foo).unwrap(), expected);
+        assert_eq!(serde_json::to_value(foo).unwrap(), expected);
     }
 
     #[test]
@@ -188,6 +188,6 @@ mod tests {
             "header": "bar",
         }};
 
-        assert_eq!(serde_json::to_value(&sig).unwrap(), expected);
+        assert_eq!(serde_json::to_value(sig).unwrap(), expected);
     }
 }

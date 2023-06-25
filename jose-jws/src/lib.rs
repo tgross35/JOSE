@@ -20,10 +20,11 @@
 )]
 #![allow(unused)]
 
-use formats::JwsSignable;
 pub use formats::{Compact, Empty};
+use formats::{Flat, JwsSignable};
 use jose_b64::{B64Bytes, Json};
 use serde::{Deserialize, Serialize};
+use signing::HmacSha256;
 pub use signing::Unsigned;
 
 extern crate alloc;
@@ -45,6 +46,17 @@ pub struct Jws<T, Fmt> {
     #[serde(flatten)]
     data: Fmt,
 }
+
+/// Default compact form, standard JOSE header
+pub type JwsCompact<T> = Jws<T, Compact<JoseHeader, HmacSha256>>;
+
+/// Default flat form
+pub type JwsFlat<T> = Jws<T, Flat<JoseHeader, Empty, HmacSha256>>;
+
+/// Standard JOSE header types
+#[non_exhaustive]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct JoseHeader {}
 
 #[cfg(test)]
 mod tests {

@@ -95,7 +95,8 @@ where
     /// Update the inner value
     pub fn update<F: FnMut(&mut T)>(&mut self, mut f: F) -> Result<(), serde_json::Error> {
         f(&mut self.val);
-        Ok(self.buf = serde_json::to_vec(&self.val)?.into())
+        self.buf = serde_json::to_vec(&self.val)?.into();
+        Ok(())
     }
 }
 

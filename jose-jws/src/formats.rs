@@ -130,9 +130,9 @@ where
         let protected_ser = serde_json::to_vec(&self.0.protected)
             .ok()
             .ok_or(SignError::Serialization)?;
-        mac.update(&Base64UrlUnpadded::encode_string(&protected_ser).as_bytes());
+        mac.update(Base64UrlUnpadded::encode_string(&protected_ser).as_bytes());
         mac.update(b".");
-        mac.update(&Base64UrlUnpadded::encode_string(bytes).as_bytes());
+        mac.update(Base64UrlUnpadded::encode_string(bytes).as_bytes());
         let signature = Alg::convert(mac.finalize()).into();
 
         Ok(Flat(Signature {
