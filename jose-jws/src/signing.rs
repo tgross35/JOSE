@@ -10,7 +10,7 @@ use jose_b64::{B64Bytes, Json};
 use jose_jwa::Algorithm;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
-use crate::Empty;
+use crate::{formats::SignError, Empty};
 
 pub type HmacSha256 = Hmac<sha2::Sha256>;
 pub type HmacSha384 = Hmac<sha2::Sha384>;
@@ -20,7 +20,7 @@ pub type HmacSha512 = Hmac<sha2::Sha512>;
 /// signature itself. The signature is the MAC of the payload plus the protected
 /// header data.
 #[derive(Clone, Debug, Serialize)]
-pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
+pub struct Signature<Phd, Uhd, Signing: MaybeSigned> {
     /// Protected header, base64 serialized
     pub(crate) protected: Protected<Phd>,
     /// Unprotected header, plain JSON
@@ -28,10 +28,48 @@ pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
     pub(crate) unprotected: Uhd,
     /// "signature" value
     #[serde(skip_serializing_if = "is_zst")]
-    pub(crate) signature: B64Bytes<Alg::SigData>,
+    pub(crate) signature: B64Bytes<Signing::SigData>,
+}
+
+impl<Phd, Uhd, Signing> Signature<Phd, Uhd, Signing>
+where
+    Signing: MaybeSigned,
+    Phd: Serialize,
+{
+    /// Update `signature` with the Mac-produced signature of our protected
+    /// header and a bytes payload
+    ///
+    /// Process (as in [RFC7515 Section 5.1]):
+    ///
+    /// 1. Compute the header as B64URL(UTF8(Protected Header))
+    /// 2. Compute the payload as B64URL(payload)
+    /// 3. Calculate the signature of `"{header}.{payload}"` with the provided key
+    ///
+    /// [RFC7515 Section 5.1]: https://www.rfc-editor.org/rfc/rfc7515#section-5.1
+    pub(crate) fn sign_bytes<Alg: SigningAlg>(
+        mut self,
+        key: &[u8],
+        bytes: &[u8],
+    ) -> Result<Signature<Phd, Uhd, Alg>, SignError> {
+        self.protected.alg = Alg::ALGORITHM;
+        let mut mac = <Alg as Mac>::new_from_slice(key)?;
+        let header = serde_json::to_vec(&self.protected)
+            .ok()
+            .ok_or(SignError::Serialization)?;
+
+        mac.update(Base64UrlUnpadded::encode_string(&header).as_bytes());
+        mac.update(b".");
+        mac.update(Base64UrlUnpadded::encode_string(bytes).as_bytes());
+        Ok(Signature {
+            protected: self.protected,
+            unprotected: self.unprotected,
+            signature: Alg::convert(mac.finalize()).into(),
+        })
+    }
 }
 
 impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
+    ///
     pub(crate) fn new_unsigned(protected: Phd, unprotected: Uhd) -> Self {
         Self {
             protected: Protected {
@@ -44,6 +82,7 @@ impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
     }
 }
 
+/// Helper for Serde
 fn is_zst<T>(value: &T) -> bool {
     core::mem::size_of::<T>() == 0
 }
@@ -65,7 +104,10 @@ pub trait MaybeSigned {
     type SigData: Serialize + AsRef<[u8]>;
 }
 
-/// Provide the name of
+/// Provide the enum variant of the algorithm
+///
+/// This trait is separate from [`SigningAlg`] so we cna derive `SigningAlg` but
+/// manually match the enum variant
 pub trait AlgorithmMeta {
     const ALGORITHM: Algorithm;
 }

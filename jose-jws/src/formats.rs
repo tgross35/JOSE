@@ -120,26 +120,11 @@ where
     type SignedTy<Alg: MaybeSigned> = Flat<Phd, Uhd, Alg>;
 
     fn sign_bytes<Alg: SigningAlg>(
-        mut self,
+        self,
         key: &[u8],
         bytes: &[u8],
     ) -> Result<Self::SignedTy<Alg>, SignError> {
-        self.0.protected.alg = Alg::ALGORITHM;
-        let mut mac = <Alg as hmac::Mac>::new_from_slice(key)?;
-
-        let protected_ser = serde_json::to_vec(&self.0.protected)
-            .ok()
-            .ok_or(SignError::Serialization)?;
-        mac.update(Base64UrlUnpadded::encode_string(&protected_ser).as_bytes());
-        mac.update(b".");
-        mac.update(Base64UrlUnpadded::encode_string(bytes).as_bytes());
-        let signature = Alg::convert(mac.finalize()).into();
-
-        Ok(Flat(Signature {
-            protected: self.0.protected,
-            unprotected: self.0.unprotected,
-            signature,
-        }))
+        Ok(Flat(self.0.sign_bytes::<Alg>(key, bytes)?))
     }
 }
 
@@ -180,7 +165,7 @@ pub struct Empty;
 impl AsRef<[u8]> for Empty {
     /// Unimplemented; needed only to meet our trait bounds
     fn as_ref(&self) -> &[u8] {
-        unimplemented!()
+        unimplemented!("serde should always skip this field")
     }
 }
 
