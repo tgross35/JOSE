@@ -19,13 +19,15 @@ pub type HmacSha512 = Hmac<sha2::Sha512>;
 /// A single signature contains protected data, unprotected data, and then the
 /// signature itself. The signature is the MAC of the payload plus the protected
 /// header data.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
     /// Protected header, base64 serialized
     pub(crate) protected: Protected<Phd>,
     /// Unprotected header, plain JSON
+    #[serde(rename = "header")]
     pub(crate) unprotected: Uhd,
     /// "signature" value
+    #[serde(skip_serializing_if = "is_zst")]
     pub(crate) signature: B64Bytes<Alg::SigData>,
 }
 
@@ -39,31 +41,6 @@ impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
             unprotected,
             signature: Empty.into(),
         }
-    }
-}
-
-impl<Phd, Uhd, Alg> Serialize for Signature<Phd, Uhd, Alg>
-where
-    Uhd: Serialize,
-    Phd: Serialize,
-    Alg: MaybeSigned,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let ser_signature = !is_zst(&self.signature);
-        let len = if ser_signature { 2 } else { 1 };
-        let mut map = serializer.serialize_map(Some(len))?;
-        map.serialize_entry("protected", &self.protected)?;
-        map.serialize_entry("header", &self.unprotected)?;
-        if ser_signature {
-            map.serialize_entry(
-                "signature",
-                &self.signature, // Base64UrlUnpadded::encode_string(&self.signature),
-            )?;
-        }
-        map.end()
     }
 }
 

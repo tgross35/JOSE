@@ -178,9 +178,9 @@ where
 pub struct Empty;
 
 impl AsRef<[u8]> for Empty {
+    /// Unimplemented; needed only to meet our trait bounds
     fn as_ref(&self) -> &[u8] {
         unimplemented!()
-        // &[]
     }
 }
 
