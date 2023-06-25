@@ -25,6 +25,13 @@ pub struct B64Bytes<T = Box<[u8]>, E = Base64UrlUnpadded> {
     cfg: PhantomData<E>,
 }
 
+impl<T: AsRef<[u8]>, E: Encoding> B64Bytes<T, E> {
+    /// Return the base64-encoded value of the buffer
+    pub fn encode_string(&self) -> String {
+        E::encode_string(self.buf.as_ref())
+    }
+}
+
 impl<T: crate::Zeroize, E> crate::Zeroize for B64Bytes<T, E> {
     fn zeroize(&mut self) {
         self.buf.zeroize()

@@ -25,7 +25,8 @@ pub trait JwsSignable: Sealed {
     // FIXME: key or payload first? Best to be consistent with rustcrypto
     /// Sign a serializable object
     fn sign_payload<Alg: SigningAlg, T: Serialize>(
-        self,key: &[u8],
+        self,
+        key: &[u8],
         payload: &T,
     ) -> Result<Self::SignedTy<Alg>, SignError>
     where
@@ -38,7 +39,11 @@ pub trait JwsSignable: Sealed {
     }
 
     /// Sign any raw bytes payload
-    fn sign_bytes<Alg: SigningAlg>(self, key: &[u8],bytes: &[u8]) -> Result<Self::SignedTy<Alg>, SignError>
+    fn sign_bytes<Alg: SigningAlg>(
+        self,
+        key: &[u8],
+        bytes: &[u8],
+    ) -> Result<Self::SignedTy<Alg>, SignError>
     where
         Self: Sized,
     {
@@ -119,19 +124,15 @@ where
         key: &[u8],
         bytes: &[u8],
     ) -> Result<Self::SignedTy<Alg>, SignError> {
-        self.0.protected.update(|p| p.alg = Alg::ALGORITHM);
+        self.0.protected.alg = Alg::ALGORITHM;
         let mut mac = <Alg as hmac::Mac>::new_from_slice(key)?;
 
         let protected_ser = serde_json::to_vec(&self.0.protected)
             .ok()
             .ok_or(SignError::Serialization)?;
-        // TODO we're serializing the json and not b64 here
-        std::dbg!(std::str::from_utf8(&self.0.protected.as_ref()));
-        // std::dbg!(std::str::from_utf8(&protected_ser));
-        mac.update(self.0.protected.as_ref());
-
-        std::dbg!(std::str::from_utf8(bytes));
-        mac.update(std::dbg!(&Base64UrlUnpadded::encode_string(bytes)).as_bytes());
+        mac.update(&Base64UrlUnpadded::encode_string(&protected_ser).as_bytes());
+        mac.update(b".");
+        mac.update(&Base64UrlUnpadded::encode_string(bytes).as_bytes());
         let signature = Alg::convert(mac.finalize()).into();
 
         Ok(Flat(Signature {
@@ -141,7 +142,6 @@ where
         }))
     }
 }
-extern crate std;
 
 impl<Phd, Uhd, Signing: MaybeSigned> Sealed for Flat<Phd, Uhd, Signing> {}
 
@@ -189,6 +189,7 @@ mod tests {
     extern crate std;
 
     use crate::signing::HmacSha256;
+    use std::str;
 
     use super::*;
     use jose_b64::Json;
@@ -204,11 +205,11 @@ mod tests {
             "exp":1300819380,
             "http://example.com/is_root":true
         }};
+        let expected_sig = "7jHJa4kTe23c-JsCNeHNcAALPyiVB_cbBjCrV_5OcK8";
         let sig = Flat(Signature::new_unsigned(protected, Empty));
-        std::dbg!(&sig);
-        let out: Flat<Value, Empty, HmacSha256> =
-            sig.sign_payload::<HmacSha256, _>("hi".as_bytes(), &payload).unwrap();
-        std::dbg!(&out);
-        std::dbg!(serde_json::to_string(&out).unwrap());
+        let out: Flat<Value, Empty, HmacSha256> = sig
+            .sign_payload::<HmacSha256, _>("hi".as_bytes(), &payload)
+            .unwrap();
+        assert_eq!(expected_sig, out.0.signature.encode_string());
     }
 }

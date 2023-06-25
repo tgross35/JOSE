@@ -6,7 +6,7 @@ use hmac::{
     digest::{CtOutput, InvalidLength, KeyInit},
     Hmac, Mac,
 };
-use jose_b64::{Json, B64Bytes};
+use jose_b64::{B64Bytes, Json};
 use jose_jwa::Algorithm;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
@@ -22,7 +22,7 @@ pub type HmacSha512 = Hmac<sha2::Sha512>;
 #[derive(Clone, Debug)]
 pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
     /// Protected header, base64 serialized
-    pub(crate) protected: Json<Protected<Phd>>,
+    pub(crate) protected: Protected<Phd>,
     /// Unprotected header, plain JSON
     pub(crate) unprotected: Uhd,
     /// "signature" value
@@ -32,11 +32,10 @@ pub struct Signature<Phd, Uhd, Alg: MaybeSigned> {
 impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
     pub(crate) fn new_unsigned(protected: Phd, unprotected: Uhd) -> Self {
         Self {
-            protected: Json::new(Protected {
+            protected: Protected {
                 alg: Algorithm::None,
                 extra: protected,
-            })
-            .unwrap(),
+            },
             unprotected,
             signature: Empty.into(),
         }
@@ -46,6 +45,7 @@ impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
 impl<Phd, Uhd, Alg> Serialize for Signature<Phd, Uhd, Alg>
 where
     Uhd: Serialize,
+    Phd: Serialize,
     Alg: MaybeSigned,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -60,8 +60,7 @@ where
         if ser_signature {
             map.serialize_entry(
                 "signature",
-                &self.signature
-                // Base64UrlUnpadded::encode_string(&self.signature),
+                &self.signature, // Base64UrlUnpadded::encode_string(&self.signature),
             )?;
         }
         map.end()
@@ -86,7 +85,7 @@ pub struct Protected<Phd> {
 /// Trait for both signed and unsigned data
 pub trait MaybeSigned {
     /// Data representing signature type
-    type SigData: Serialize+ AsRef<[u8]>;
+    type SigData: Serialize + AsRef<[u8]>;
 }
 
 /// Provide the name of
@@ -181,7 +180,11 @@ mod tests {
         let sig: SigTy = Signature::new_unsigned(EXTRA, String::from("bar"));
 
         let expected = json! {{
-            "protected": "eyJhbGciOiJub25lIiwiYSI6ImZvbyIsImIiOjEwMH0",
+            "protected": {
+                "alg": "none",
+                "a": "foo",
+                "b": 100
+            },
             "header": "bar",
         }};
 
