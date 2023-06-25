@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{vec::Vec, string::String};
 use base64ct::{Base64UrlUnpadded, Encoding};
 use core::fmt;
 use hmac::digest::InvalidLength;
@@ -21,7 +21,7 @@ use crate::{
 /// - [`General`]: A JSON representation allowing more than one signature
 pub trait JwsSignable: Sized + Sealed {
     /// Resulting type after signing with an algorithm
-    type SignedTy<Alg: MaybeSigned>;
+    type SignedTy<Alg: MaybeSigned<'static>>;
     /// Resulting type after unsigning
     type UnsignedTy;
 
@@ -51,6 +51,15 @@ pub trait JwsSignable: Sized + Sealed {
     fn into_unsigned(self) -> Self::UnsignedTy {
         todo!()
     }
+
+    /// Encode self into the default format
+    fn encode_string(&self) -> String {
+        todo!()
+    }
+}
+
+pub trait JwsVerifyable<'de>: Sealed {
+    fn decode<'a: 'de>(data: &'a str, key: &[u8]) -> Self;
 }
 
 /// Errors with signing happen either during serialization or hmac
@@ -99,7 +108,7 @@ where
 }
 
 /// Flat format, allows protected and unprotected header data
-// #[derive(Debug)]
+#[derive(Debug)]
 pub struct Flat<Phd, Uhd, Signing: MaybeSigned>(Signature<Phd, Uhd, Signing>);
 
 impl<Phd, Uhd, Signing: MaybeSigned> Serialize for Flat<Phd, Uhd, Signing>
@@ -114,10 +123,22 @@ where
     }
 }
 
+impl<'de, Phd, Uhd, Signing: MaybeSigned> Deserialize<'de> for Flat<Phd, Uhd, Signing>
+where
+    Signature<Phd, Uhd, Signing>: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        Ok(Self(Signature::deserialize(deserializer)?))
+    }
+}
+
 impl<Phd, Uhd, Signing> JwsSignable for Flat<Phd, Uhd, Signing>
 where
     Signing: MaybeSigned,
     Phd: Serialize,
+    Uhd: Serialize
 {
     type SignedTy<Alg: MaybeSigned> = Flat<Phd, Uhd, Alg>;
     type UnsignedTy = Flat<Phd, Uhd, Unsigned>;
@@ -133,6 +154,21 @@ where
     fn into_unsigned(self) -> Self::UnsignedTy {
         Flat(self.0.unsign())
     }
+
+    fn encode_string(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+}
+
+impl<'de, Phd, Uhd, Signing> JwsVerifyable<'de> for Flat<Phd, Uhd, Signing>
+where
+    Signature<Phd, Uhd, Signing>:  Deserialize<'de>,
+    Signing: MaybeSigned
+{
+    fn decode<'a: 'de>(data: &'a str, key: &[u8]) -> Self {
+        let x: Self = serde_json::from_str(data).unwrap();
+        todo!()
+    }
 }
 
 impl<Phd, Uhd, Signing: MaybeSigned> Sealed for Flat<Phd, Uhd, Signing> {}
@@ -143,15 +179,6 @@ where
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
-    }
-}
-
-impl<Phd, Uhd, Signing: MaybeSigned> fmt::Debug for Flat<Phd, Uhd, Signing>
-where
-    Signature<Phd, Uhd, Signing>: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Flat").field(&self.0).finish()
     }
 }
 
@@ -198,10 +225,17 @@ mod tests {
             "http://example.com/is_root":true
         }};
         let expected_sig = "7jHJa4kTe23c-JsCNeHNcAALPyiVB_cbBjCrV_5OcK8";
+        let expected = json! {{
+            "protected": {"alg": "HS256", "typ": "JWT" },
+            "signature": "7jHJa4kTe23c-JsCNeHNcAALPyiVB_cbBjCrV_5OcK8"
+        }};
         let sig = Flat(Signature::new_unsigned(protected, Empty));
         let out: Flat<Value, Empty, HmacSha256> = sig
             .sign_payload::<HmacSha256, _>("hi".as_bytes(), &payload)
             .unwrap();
         assert_eq!(expected_sig, out.0.signature.encode_string());
+        assert_eq!(expected, serde_json::to_value(&out).unwrap());
+        std::dbg!(out.encode_string());
+        std::dbg!(serde_json::from_str::<Flat<Value, Empty, HmacSha256>>(&out.encode_string()));
     }
 }

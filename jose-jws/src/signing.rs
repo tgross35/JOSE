@@ -17,9 +17,9 @@ pub type HmacSha384 = Hmac<sha2::Sha384>;
 pub type HmacSha512 = Hmac<sha2::Sha512>;
 
 /// Trait for both signed and unsigned data
-pub trait MaybeSigned {
+pub trait MaybeSigned<'de> {
     /// Data representing signature type
-    type SigData: Serialize + AsRef<[u8]>;
+    type SigData: Serialize+Deserialize<'de> + AsRef<[u8]> + Debug;
 }
 
 /// Marker trait indicating data can be edited. We use this to forbid editing of
@@ -35,7 +35,7 @@ pub trait AlgorithmMeta {
 }
 
 /// Trait for all serializable algorithms
-pub trait SigningAlg: MaybeSigned + AlgorithmMeta + Sized + Mac + KeyInit {
+pub trait SigningAlg: MaybeSigned<'static> + AlgorithmMeta + Sized + Mac + KeyInit {
     /// Convert a Mac's output to the correct signature data
     fn convert(input: CtOutput<Self>) -> Self::SigData;
 }
@@ -83,12 +83,13 @@ where
 /// A single signature contains protected data, unprotected data, and then the
 /// signature itself. The signature is the MAC of the payload plus the protected
 /// header data.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Signature<Phd, Uhd, Signing: MaybeSigned> {
     /// Protected header, base64 serialized
     pub(crate) protected: Protected<Phd>,
     /// Unprotected header, plain JSON
     #[serde(rename = "header")]
+    #[serde(skip_serializing_if = "is_zst")]
     pub(crate) unprotected: Uhd,
     /// "signature" value
     #[serde(skip_serializing_if = "is_zst")]
