@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     private::Sealed,
     signing::{MaybeSigned, Signature, SigningAlg},
+    Unsigned,
 };
 
 /// Trait for JWS formats. This is sealed because there are only three possible
@@ -18,9 +19,11 @@ use crate::{
 ///       single signature with protected header data (no unprotected data)
 /// - [`Flat`]: A JSON representation of a single signature
 /// - [`General`]: A JSON representation allowing more than one signature
-pub trait JwsSignable: Sealed {
+pub trait JwsSignable: Sized + Sealed {
     /// Resulting type after signing with an algorithm
     type SignedTy<Alg: MaybeSigned>;
+    /// Resulting type after unsigning
+    type UnsignedTy;
 
     // FIXME: key or payload first? Best to be consistent with rustcrypto
     /// Sign a serializable object
@@ -28,10 +31,7 @@ pub trait JwsSignable: Sealed {
         self,
         key: &[u8],
         payload: &T,
-    ) -> Result<Self::SignedTy<Alg>, SignError>
-    where
-        Self: Sized,
-    {
+    ) -> Result<Self::SignedTy<Alg>, SignError> {
         let payload_ser = serde_json::to_vec(payload)
             .ok()
             .ok_or(SignError::Serialization)?;
@@ -43,10 +43,12 @@ pub trait JwsSignable: Sealed {
         self,
         key: &[u8],
         bytes: &[u8],
-    ) -> Result<Self::SignedTy<Alg>, SignError>
-    where
-        Self: Sized,
-    {
+    ) -> Result<Self::SignedTy<Alg>, SignError> {
+        todo!()
+    }
+
+    /// Convert any signed & uneditable type into a unsigned editable type
+    fn into_unsigned(self) -> Self::UnsignedTy {
         todo!()
     }
 }
@@ -118,6 +120,7 @@ where
     Phd: Serialize,
 {
     type SignedTy<Alg: MaybeSigned> = Flat<Phd, Uhd, Alg>;
+    type UnsignedTy = Flat<Phd, Uhd, Unsigned>;
 
     fn sign_bytes<Alg: SigningAlg>(
         self,
@@ -125,6 +128,10 @@ where
         bytes: &[u8],
     ) -> Result<Self::SignedTy<Alg>, SignError> {
         Ok(Flat(self.0.sign_bytes::<Alg>(key, bytes)?))
+    }
+
+    fn into_unsigned(self) -> Self::UnsignedTy {
+        Flat(self.0.unsign())
     }
 }
 

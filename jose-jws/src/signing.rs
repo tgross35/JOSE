@@ -10,22 +10,25 @@ use jose_b64::{B64Bytes, Json};
 use jose_jwa::Algorithm;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
-use crate::{formats::SignError, Empty, private::Sealed};
+use crate::{formats::SignError, private::Sealed, Empty};
 
 pub type HmacSha256 = Hmac<sha2::Sha256>;
 pub type HmacSha384 = Hmac<sha2::Sha384>;
 pub type HmacSha512 = Hmac<sha2::Sha512>;
 
-
 /// Trait for both signed and unsigned data
-pub trait MaybeSigned: Sealed {
+pub trait MaybeSigned {
     /// Data representing signature type
     type SigData: Serialize + AsRef<[u8]>;
 }
 
+/// Marker trait indicating data can be edited. We use this to forbid editing of
+/// signed data
+pub trait Mutable: Sealed {}
+
 /// Provide the enum variant of the algorithm
 ///
-/// This trait is separate from [`SigningAlg`] so we cna derive `SigningAlg` but
+/// This trait is separate from [`SigningAlg`] so we can derive `SigningAlg` but
 /// manually match the enum variant
 pub trait AlgorithmMeta {
     const ALGORITHM: Algorithm;
@@ -33,10 +36,11 @@ pub trait AlgorithmMeta {
 
 /// Trait for all serializable algorithms
 pub trait SigningAlg: MaybeSigned + AlgorithmMeta + Sized + Mac + KeyInit {
+    /// Convert a Mac's output to the correct signature data
     fn convert(input: CtOutput<Self>) -> Self::SigData;
 }
 
-/// Not yet signed. Note: does not implement serialized
+/// Marker type implementing data that has not yet signed.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Unsigned {}
 
@@ -66,6 +70,7 @@ impl AlgorithmMeta for HmacSha512 {
     const ALGORITHM: Algorithm = Algorithm::Hs512;
 }
 
+/// Blanket implementation for all HMacs with a defined algorithm
 impl<T> SigningAlg for T
 where
     T: Mac + AlgorithmMeta + KeyInit,
@@ -125,6 +130,16 @@ where
             signature: Alg::convert(mac.finalize()).into(),
         })
     }
+
+    /// Turn into an unsigned signature
+    pub(crate) fn unsign(mut self) -> Signature<Phd, Uhd, Unsigned> {
+        self.protected.alg = Algorithm::None;
+        Signature {
+            protected: self.protected,
+            unprotected: self.unprotected,
+            signature: Empty.into(),
+        }
+    }
 }
 
 impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
@@ -156,7 +171,6 @@ pub struct Protected<Phd> {
     #[serde(skip_serializing_if = "is_zst")]
     pub(crate) extra: Phd,
 }
-
 
 #[cfg(test)]
 mod tests {

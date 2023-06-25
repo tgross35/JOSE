@@ -24,8 +24,8 @@ use super::B64Bytes;
 ///   2. Its contents are not printed in the debug formatter.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-#[serde(bound(serialize = "Bytes<T, E>: Serialize"))]
-#[serde(bound(deserialize = "Bytes<T, E>: Deserialize<'de>"))]
+#[serde(bound(serialize = "B64Bytes<T, E>: Serialize"))]
+#[serde(bound(deserialize = "B64Bytes<T, E>: Deserialize<'de>"))]
 pub struct B64Secret<T: Zeroize = Box<[u8]>, E = Base64UrlUnpadded>(Zeroizing<B64Bytes<T, E>>);
 
 impl<T: Zeroize, E> Debug for B64Secret<T, E> {
