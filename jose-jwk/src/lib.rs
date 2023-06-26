@@ -24,21 +24,36 @@ use jose_b64::{base64ct::Base64, B64Bytes};
 use serde::{Deserialize, Serialize};
 
 pub use algorithm::{Algorithm, EncryptionAlg, KeyMgmtAlg, SigningAlg};
-pub use key::{
-    EcCurve, EcPublic, Key, Oct, RsaOtherPrimes, RsaPrivate,  RsaPublic,
-};
+pub use key::{Ec, EcCurve, Key, Oct, Okp, OkpCurve, OkpPrivate, Rsa, RsaOtherPrimes, RsaPrivate};
 
 extern crate alloc;
 
 /// Strongly typed JWK
 #[non_exhaustive]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Jwk {
     /// The key itself. This field contains the important information, all other
     /// top-level fields are
     #[serde(flatten)]
     pub key: Key,
 
+    #[serde(flatten)]
+    pub params: Parameters,
+}
+
+impl Jwk {
+    /// Create a new JWK from a key, using default parameters
+    pub fn new(key: Key) -> Self {
+        Self {
+            key,
+            params: Default::default(),
+        }
+    }
+}
+
+#[non_exhaustive]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Parameters {
     /// The algorithm used with this key.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub alg: Option<Algorithm>,
@@ -49,6 +64,7 @@ pub struct Jwk {
 
     /// Intended use of this public key (named `use` in the rfc)
     #[serde(rename = "use")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub use_for: Option<UseFor>,
 
     /// Intended operations for this key; optional
@@ -57,12 +73,13 @@ pub struct Jwk {
 
     /// X.509 options
     #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub x509: Option<Box<X509>>,
 }
 
 /// Additional X.509 options for a JWK
 #[non_exhaustive]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct X509 {
     /// The URL of the X.509 certificate associated with this key.
     #[serde(skip_serializing_if = "Option::is_none", default)]

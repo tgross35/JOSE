@@ -16,8 +16,19 @@ readme = "README.md"
 edition = "2021"
 rust-version = "1.65"
 
+[features]
+default = ["crypto"]
+crypto = ["p256", "p384", "rsa"]
+
 [dependencies]
+jose-jwk = { version = "0.1", path = "../jose-jwk" }
 serde = { version = "1.0.160", default-features = false, features = ["alloc", "derive"] }
+zeroize = { version = "1.6.0", default-features = false, features = ["alloc"] }
+
+# optional dependencies
+p256 = { version = "0.13.2", default-features = false, optional = true, features = ["arithmetic"] }
+p384 = { version = "0.13.0", default-features = false, optional = true, features = ["arithmetic"] }
+rsa = { version = "0.9", default-features = false, optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.96"

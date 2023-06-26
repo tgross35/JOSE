@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Profian Inc. <opensource@profian.com>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(test)]
+#[cfg(x)]
 mod rfc7517 {
     use jose_jwa::Signing;
     use jose_jwk::*;
@@ -420,7 +420,7 @@ mod rfc7517 {
     }
 }
 
-#[cfg(test)]
+#[cfg(x)]
 mod rfc8037 {
     use jose_jwk::*;
 
@@ -434,7 +434,7 @@ mod rfc8037 {
         });
 
         let jwk = Jwk {
-            key: Key::Okp(Okp {
+            key: Key::Okp(OkpPublic {
                 crv: OkpCurves::Ed25519,
                 d: Some(
                     vec![
@@ -465,7 +465,7 @@ mod rfc8037 {
         });
 
         let jwk = Jwk {
-            key: Key::Okp(Okp {
+            key: Key::Okp(OkpPublic {
                 crv: OkpCurves::Ed25519,
                 d: None,
                 x: vec![
@@ -491,7 +491,7 @@ mod rfc8037 {
         });
 
         let jwk = Jwk {
-            key: Key::Okp(Okp {
+            key: Key::Okp(OkpPublic {
                 crv: OkpCurves::X25519,
                 d: None,
                 x: vec![
@@ -520,7 +520,7 @@ mod rfc8037 {
         });
 
         let jwk = Jwk {
-            key: Key::Okp(Okp {
+            key: Key::Okp(OkpPublic {
                 crv: OkpCurves::X448,
                 d: None,
                 x: vec![

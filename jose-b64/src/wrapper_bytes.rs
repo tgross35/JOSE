@@ -85,6 +85,24 @@ impl<E> From<Vec<u8>> for B64Bytes<Box<[u8]>, E> {
     }
 }
 
+impl<E> From<&str> for B64Bytes<Box<[u8]>, E> {
+    fn from(buf: &str) -> Self {
+        Self {
+            buf: buf.as_bytes().into(),
+            cfg: PhantomData,
+        }
+    }
+}
+
+impl<E> From<&[u8]> for B64Bytes<Box<[u8]>, E> {
+    fn from(buf: &[u8]) -> Self {
+        Self {
+            buf: buf.into(),
+            cfg: PhantomData,
+        }
+    }
+}
+
 impl<E> From<B64Bytes<Vec<u8>, E>> for B64Bytes<Box<[u8]>, E> {
     fn from(bytes: B64Bytes<Vec<u8>, E>) -> Self {
         Self::from(bytes.buf.into_boxed_slice())

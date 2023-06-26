@@ -14,10 +14,10 @@ use zeroize::{Zeroize, Zeroizing};
 
 use super::B64Bytes;
 
-/// A serde wrapper for base64-encoded secrets (secure version of [`Bytes`]).
+/// A serde wrapper for base64-encoded secrets (secure version of [`B64Bytes`]).
 /// Available with the feature `secret`.
 ///
-/// A secret is like the [`Bytes`] type, with some additional protections:
+/// A secret is like the [`B64Bytes`] type, with some additional protections:
 ///
 ///   1. It is zeroed on drop.
 ///   2. Its equality implementation is constant time.
