@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod rfc7517 {
-    use jose_jwa::Algorithm;
+    use jose_jwa::Signing;
     use jose_jwk::*;
 
     #[test]
@@ -31,8 +31,8 @@ mod rfc7517 {
         let jwk = JwkSet {
             keys: vec![
                 Jwk {
-                    key: Key::Ec(Ec {
-                        crv: EcCurves::P256,
+                    key: Key::Ec(EcPublic {
+                        crv: EcCurve::P256,
                         d: None,
                         x: vec![
                             48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43, 55, 231,
@@ -53,7 +53,7 @@ mod rfc7517 {
                     },
                 },
                 Jwk {
-                    key: Key::Rsa(Rsa {
+                    key: Key::Rsa(RsaPublic {
                         prv: None,
                         e: vec![1, 0, 1].into(),
                         n: vec![
@@ -78,7 +78,7 @@ mod rfc7517 {
                         .into(),
                     }),
                     prm: Parameters {
-                        alg: Some(Algorithm::Rs256.into()),
+                        alg: Some(SigningAlg::Rs256.into()),
                         kid: Some("2011-04-29".to_string()),
                         ..Default::default()
                     },
@@ -139,8 +139,8 @@ mod rfc7517 {
         let jwk = JwkSet {
             keys: vec![
                 Jwk {
-                    key: Key::Ec(Ec {
-                        crv: EcCurves::P256,
+                    key: Key::Ec(EcPublic {
+                        crv: EcCurve::P256,
                         d: Some(
                             vec![
                                 243, 189, 12, 7, 168, 31, 185, 50, 120, 30, 213, 39, 82, 246, 12,
@@ -168,7 +168,7 @@ mod rfc7517 {
                     },
                 },
                 Jwk {
-                    key: Key::Rsa(Rsa {
+                    key: Key::Rsa(RsaPublic {
                         e: vec![1, 0, 1].into(),
                         n: vec![
                             210, 252, 123, 106, 10, 30, 108, 103, 16, 74, 235, 143, 136, 178, 87,
@@ -284,7 +284,7 @@ mod rfc7517 {
                         }),
                     }),
                     prm: Parameters {
-                        alg: Some(Algorithm::Rs256.into()),
+                        alg: Some(SigningAlg::Rs256.into()),
                         kid: Some("2011-04-29".to_string()),
                         ..Default::default()
                     },
@@ -307,7 +307,7 @@ mod rfc7517 {
         if let Key::Rsa(key) = &jwk.keys[1].key {
             let pk = ::rsa::RsaPrivateKey::try_from(key).unwrap();
             // FIXME: work around the serialization asymmetry.
-            let mut k: Rsa = pk.into();
+            let mut k: RsaPublic = pk.into();
             k.prv.as_mut().unwrap().opt = key.prv.as_ref().unwrap().opt.clone();
             assert_eq!(key, &k);
         } else {
@@ -329,7 +329,7 @@ mod rfc7517 {
         });
 
         let jwk = Jwk {
-            key: Key::Rsa(Rsa {
+            key: Key::Rsa(RsaPublic {
                 prv: None,
                 e: vec![1, 0, 1].into(),
                 n: vec![

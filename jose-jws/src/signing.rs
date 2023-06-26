@@ -7,7 +7,7 @@ use hmac::{
     Hmac, Mac,
 };
 use jose_b64::{B64Bytes, Json};
-use jose_jwa::Algorithm;
+use jose_jwa::Signing;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{formats::SignError, private::Sealed, Empty};
@@ -19,7 +19,7 @@ pub type HmacSha512 = Hmac<sha2::Sha512>;
 /// Trait for both signed and unsigned data
 pub trait MaybeSigned<'de> {
     /// Data representing signature type
-    type SigData: Serialize+Deserialize<'de> + AsRef<[u8]> + Debug;
+    type SigData: Serialize + Deserialize<'de> + AsRef<[u8]> + Debug;
 }
 
 /// Marker trait indicating data can be edited. We use this to forbid editing of
@@ -31,7 +31,7 @@ pub trait Mutable: Sealed {}
 /// This trait is separate from [`SigningAlg`] so we can derive `SigningAlg` but
 /// manually match the enum variant
 pub trait AlgorithmMeta {
-    const ALGORITHM: Algorithm;
+    const ALGORITHM: Signing;
 }
 
 /// Trait for all serializable algorithms
@@ -61,13 +61,13 @@ where
 }
 
 impl AlgorithmMeta for HmacSha256 {
-    const ALGORITHM: Algorithm = Algorithm::Hs256;
+    const ALGORITHM: Signing = Signing::Hs256;
 }
 impl AlgorithmMeta for HmacSha384 {
-    const ALGORITHM: Algorithm = Algorithm::Hs384;
+    const ALGORITHM: Signing = Signing::Hs384;
 }
 impl AlgorithmMeta for HmacSha512 {
-    const ALGORITHM: Algorithm = Algorithm::Hs512;
+    const ALGORITHM: Signing = Signing::Hs512;
 }
 
 /// Blanket implementation for all HMacs with a defined algorithm
@@ -134,7 +134,7 @@ where
 
     /// Turn into an unsigned signature
     pub(crate) fn unsign(mut self) -> Signature<Phd, Uhd, Unsigned> {
-        self.protected.alg = Algorithm::None;
+        self.protected.alg = Signing::None;
         Signature {
             protected: self.protected,
             unprotected: self.unprotected,
@@ -148,7 +148,7 @@ impl<Phd: Serialize, Uhd> Signature<Phd, Uhd, Unsigned> {
     pub(crate) fn new_unsigned(protected: Phd, unprotected: Uhd) -> Self {
         Self {
             protected: Protected {
-                alg: Algorithm::None,
+                alg: Signing::None,
                 extra: protected,
             },
             unprotected,
@@ -166,7 +166,7 @@ fn is_zst<T>(value: &T) -> bool {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Protected<Phd> {
     /// When we sign, we always set the algorithm
-    pub(crate) alg: Algorithm,
+    pub(crate) alg: Signing,
     /// Data that
     #[serde(flatten)]
     #[serde(skip_serializing_if = "is_zst")]
@@ -195,7 +195,7 @@ mod tests {
     fn test_protected() {
         // Test serializing extra data as flat
         let input: Protected<Extra> = Protected {
-            alg: Algorithm::None,
+            alg: Signing::None,
             extra: EXTRA,
         };
         let expected = json! {{"alg":"none","a":"foo","b":100}};
@@ -203,7 +203,7 @@ mod tests {
 
         // Test no extra data
         let foo: Protected<Empty> = Protected {
-            alg: Algorithm::Es256,
+            alg: Signing::Es256,
             extra: Empty,
         };
         let expected = json! {{"alg":"ES256"}};

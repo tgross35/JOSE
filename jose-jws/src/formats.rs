@@ -1,4 +1,4 @@
-use alloc::{vec::Vec, string::String};
+use alloc::{string::String, vec::Vec};
 use base64ct::{Base64UrlUnpadded, Encoding};
 use core::fmt;
 use hmac::digest::InvalidLength;
@@ -129,7 +129,8 @@ where
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         Ok(Self(Signature::deserialize(deserializer)?))
     }
 }
@@ -138,7 +139,7 @@ impl<Phd, Uhd, Signing> JwsSignable for Flat<Phd, Uhd, Signing>
 where
     Signing: MaybeSigned,
     Phd: Serialize,
-    Uhd: Serialize
+    Uhd: Serialize,
 {
     type SignedTy<Alg: MaybeSigned> = Flat<Phd, Uhd, Alg>;
     type UnsignedTy = Flat<Phd, Uhd, Unsigned>;
@@ -162,8 +163,8 @@ where
 
 impl<'de, Phd, Uhd, Signing> JwsVerifyable<'de> for Flat<Phd, Uhd, Signing>
 where
-    Signature<Phd, Uhd, Signing>:  Deserialize<'de>,
-    Signing: MaybeSigned
+    Signature<Phd, Uhd, Signing>: Deserialize<'de>,
+    Signing: MaybeSigned,
 {
     fn decode<'a: 'de>(data: &'a str, key: &[u8]) -> Self {
         let x: Self = serde_json::from_str(data).unwrap();
@@ -236,6 +237,8 @@ mod tests {
         assert_eq!(expected_sig, out.0.signature.encode_string());
         assert_eq!(expected, serde_json::to_value(&out).unwrap());
         std::dbg!(out.encode_string());
-        std::dbg!(serde_json::from_str::<Flat<Value, Empty, HmacSha256>>(&out.encode_string()));
+        std::dbg!(serde_json::from_str::<Flat<Value, Empty, HmacSha256>>(
+            &out.encode_string()
+        ));
     }
 }

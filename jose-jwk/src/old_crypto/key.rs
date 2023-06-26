@@ -3,7 +3,7 @@
 
 use alloc::boxed::Box;
 
-use jose_jwa::Algorithm;
+use jose_jwa::Signing;
 use zeroize::Zeroizing;
 
 use super::KeyInfo;
@@ -52,7 +52,7 @@ impl KeyInfo for Key {
         }
     }
 
-    fn is_supported(&self, algo: &Algorithm) -> bool {
+    fn is_supported(&self, algo: &Signing) -> bool {
         match self {
             Self::Oct(k) => k.is_supported(algo),
 

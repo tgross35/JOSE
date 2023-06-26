@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Profian Inc. <opensource@profian.com>
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use jose_jwa::Algorithm;
+use jose_jwa::Signing;
 
 use super::KeyInfo;
 
@@ -22,7 +22,7 @@ impl<P: KeyInfo, S: KeyInfo> KeyInfo for Kind<P, S> {
         }
     }
 
-    fn is_supported(&self, algo: &Algorithm) -> bool {
+    fn is_supported(&self, algo: &Signing) -> bool {
         match self {
             Self::Public(k) => k.is_supported(algo),
             Self::Secret(k) => k.is_supported(algo),

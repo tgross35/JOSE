@@ -6,7 +6,7 @@
 use p384::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use p384::{EncodedPoint, FieldBytes, PublicKey, SecretKey};
 
-use jose_jwa::{Algorithm, Algorithm as S, Algorithm::Signing};
+use jose_jwa::{Signing, Signing as S, Signing::Signing};
 
 use super::Error;
 use super::KeyInfo;
@@ -17,7 +17,7 @@ impl KeyInfo for PublicKey {
         24
     }
 
-    fn is_supported(&self, algo: &Algorithm) -> bool {
+    fn is_supported(&self, algo: &Signing) -> bool {
         matches!(algo, Signing(S::Es384))
     }
 }
@@ -27,7 +27,7 @@ impl KeyInfo for SecretKey {
         24
     }
 
-    fn is_supported(&self, algo: &Algorithm) -> bool {
+    fn is_supported(&self, algo: &Signing) -> bool {
         matches!(algo, Signing(S::Es384))
     }
 }

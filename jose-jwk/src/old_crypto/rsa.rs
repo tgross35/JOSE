@@ -8,7 +8,7 @@ use rsa::{
     BigUint, RsaPrivateKey, RsaPublicKey,
 };
 
-use jose_jwa::{Algorithm, Algorithm as S, Algorithm::Signing};
+use jose_jwa::{Signing, Signing as S, Signing::Signing};
 
 use super::Error;
 use super::KeyInfo;
@@ -19,7 +19,7 @@ impl KeyInfo for RsaPublicKey {
         self.size() / 16
     }
 
-    fn is_supported(&self, algo: &Algorithm) -> bool {
+    fn is_supported(&self, algo: &Signing) -> bool {
         // RFC 7518 Section 3.3
         //
         // I would actually prefer stronger requirements here based on the
@@ -47,7 +47,7 @@ impl KeyInfo for RsaPrivateKey {
         self.size() / 16
     }
 
-    fn is_supported(&self, algo: &Algorithm) -> bool {
+    fn is_supported(&self, algo: &Signing) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (algo, self.strength()) {
             (Signing(S::Rs256), 16..) => true,

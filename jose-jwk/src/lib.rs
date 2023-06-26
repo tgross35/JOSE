@@ -1,6 +1,3 @@
-// SPDX-FileCopyrightText: 2022 Profian Inc. <opensource@profian.com>
-// SPDX-License-Identifier: Apache-2.0 OR MIT
-
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
@@ -19,44 +16,116 @@
     unused_qualifications
 )]
 
+mod algorithm;
+mod key;
+
+use alloc::{boxed::Box, collections::BTreeSet, string::String, vec::Vec};
+use jose_b64::{base64ct::Base64, B64Bytes};
+use serde::{Deserialize, Serialize};
+
+pub use algorithm::{Algorithm, EncryptionAlg, KeyMgmtAlg, SigningAlg};
+pub use key::{
+    EcCurve, EcPublic, Key, Oct, RsaOtherPrimes, RsaPrivate,  RsaPublic,
+};
+
 extern crate alloc;
 
-pub mod crypto;
+/// Strongly typed JWK
+#[non_exhaustive]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Jwk {
+    /// The key itself. This field contains the important information, all other
+    /// top-level fields are
+    #[serde(flatten)]
+    pub key: Key,
 
-mod key;
-mod prm;
+    /// The algorithm used with this key.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub alg: Option<Algorithm>,
 
-pub use key::*;
-pub use prm::{Class, Operations, Parameters, Thumbprint};
+    /// Identifier of this key
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub kid: Option<String>,
 
-pub use jose_b64;
-pub use jose_jwa;
+    /// Intended use of this public key (named `use` in the rfc)
+    #[serde(rename = "use")]
+    pub use_for: Option<UseFor>,
 
-use serde::{Deserialize, Serialize};
+    /// Intended operations for this key; optional
+    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
+    pub key_ops: BTreeSet<Operations>,
+
+    /// X.509 options
+    #[serde(flatten)]
+    pub x509: Option<Box<X509>>,
+}
+
+/// Additional X.509 options for a JWK
+#[non_exhaustive]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct X509 {
+    /// The URL of the X.509 certificate associated with this key.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[cfg(feature = "url")]
+    pub x5u: Option<url::Url>,
+
+    /// The X.509 certificate associated with this key.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub x5c: Option<Vec<B64Bytes<Box<[u8]>, Base64>>>, // base64, not base64url
+
+    /// An X.509 thumbprint (SHA-1).
+    #[serde(skip_serializing_if = "Option::is_none", rename = "x5t", default)]
+    pub x5t: Option<B64Bytes<[u8; 20]>>,
+
+    /// An X.509 thumbprint (SHA-2 256).
+    #[serde(skip_serializing_if = "Option::is_none", rename = "x5t#S256", default)]
+    pub x5t_s256: Option<B64Bytes<[u8; 32]>>,
+}
 
 /// A set of JSON Web Keys.
 ///
 /// This type is defined in [RFC7517 Section 5].
 ///
 /// [RFC7517 Section 5]: https://datatracker.ietf.org/doc/html/rfc7517#section-5
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct JwkSet {
     /// The keys in the set.
-    pub keys: alloc::vec::Vec<Jwk>,
+    pub keys: Vec<Jwk>,
 }
 
-/// A JSON Web Key.
-///
-/// This type is defined in [RFC7517 Section 4].
-///
-/// [RFC7517 Section 4]: https://datatracker.ietf.org/doc/html/rfc7517#section-4
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Jwk {
-    /// The key material.
-    #[serde(flatten)]
-    pub key: Key,
+/// Intended use of this key
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum UseFor {
+    /// The key should be used for encryption
+    #[serde(rename = "enc")]
+    Encryption,
+    /// The key should be used for signing
+    #[serde(rename = "sig")]
+    Signing,
+}
 
-    /// The key parameters.
-    #[serde(flatten)]
-    pub prm: Parameters,
+/// Possible values for `key_ops`, specified in RFC7517 section 4.3.
+// NOTE: Keep in lexicographical order for BTreeSet
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Operations {
+    /// Decrypt content and validate decryption, if applicable
+    Decrypt,
+    /// Derive bits not to be used as a key
+    DeriveBits,
+    /// Derive key
+    DeriveKey,
+    /// Encrypt key
+    Encrypt,
+    /// Compute digital signature or MAC
+    Sign,
+    /// Decrypt key and validate decryption, if applicable
+    UnwrapKey,
+    /// Verify digital signature or MAC
+    Verify,
+    /// Encrypt content
+    WrapKey,
 }

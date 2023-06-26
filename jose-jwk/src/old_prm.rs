@@ -12,14 +12,14 @@ use serde::{Deserialize, Serialize};
 
 use jose_b64::base64ct::Base64;
 use jose_b64::B64Bytes;
-use jose_jwa::Algorithm;
+use jose_jwa::Signing;
 
 /// JWK parameters unrelated to the key implementation
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Parameters {
     /// The algorithm used with this key.
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub alg: Option<Algorithm>,
+    pub alg: Option<Signing>,
 
     /// The key identifier.
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -47,12 +47,12 @@ pub struct Parameters {
     pub x5t: Thumbprint,
 }
 
-impl<T: Into<Algorithm>> From<T> for Parameters {
+impl<T: Into<Signing>> From<T> for Parameters {
     fn from(value: T) -> Self {
         let alg = Some(value.into());
 
         let cls = match alg {
-            Some(Algorithm::Signing(..)) => Some(Class::Signing),
+            Some(Signing::Signing(..)) => Some(Class::Signing),
             _ => None,
         };
 
